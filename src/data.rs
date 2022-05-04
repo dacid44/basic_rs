@@ -1,3 +1,7 @@
+//! Holds types and functions for dealing with data operations.
+//!
+//! May be split into `data` and `expression` (or some other split) in the future.
+
 use std::any::Any;
 use std::fmt;
 use std::fmt::{Formatter, write};
@@ -22,11 +26,13 @@ macro_rules! matching_types {
     }
 }
 
+/// Used to hold a specifier for a type of data without the data itself.
 #[derive(Debug)]
 pub(crate) enum EmptyDataType {
     String,
     Integer,
     Float,
+    /// A numerical type, currently `Integer` or `Float`.
     Number,
     Boolean,
 }
@@ -35,6 +41,7 @@ pub(crate) enum EmptyDataType {
 //     pub(crate) fn fill(self, )
 // }
 
+/// Holds the available data types.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum DataType {
     String(String),
@@ -44,10 +51,13 @@ pub(crate) enum DataType {
 }
 
 impl DataType {
+    /// Attempts to extract data from a [`DataType`]. May not be very useful, might be better to just
+    /// use [`TryFrom`] directly.
     pub(crate) fn extract<T: TryFrom<Self, Error = TypeError>>(self) -> Result<T, TypeError> {
         self.try_into()
     }
 
+    /// Return the [`EmptyDataType`] branch corresponding to the type of `self`.
     pub(crate) fn get_empty(&self) -> EmptyDataType {
         match self {
             Self::String(_) => EmptyDataType::String,
@@ -57,10 +67,12 @@ impl DataType {
         }
     }
 
+    /// Test if `self` is a numeric type.
     pub(crate) fn is_numeric(&self) -> bool {
         matches!(self, Self::Integer(_) | Self::Float(_))
     }
 
+    /// Test if `self` matches the type specified by `test_type`.
     pub(crate) fn is_type(&self, test_type: &EmptyDataType) -> bool {
         match (self, test_type) {
             (Self::String(_), EmptyDataType::String) => true,
@@ -72,10 +84,15 @@ impl DataType {
         }
     }
 
+    /// Similar to [`is_type()`](Self::is_type()), but returns an [`Option`] containing `self` if
+    /// the type matches `test_type`.
     pub(crate) fn check_type(self, test_type: &EmptyDataType) -> Option<Self> {
         if self.is_type(test_type) { Some(self) } else { None }
     }
 
+    /// Helper function to get a [`TypeError`].
+    ///
+    ///
     pub(crate) fn type_error<T>(self, context: &str, expected: EmptyDataType) -> TypeResult<T> {
         Err(TypeError {
             context: context.to_string(),

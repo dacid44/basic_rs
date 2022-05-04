@@ -1,3 +1,11 @@
+//! Error handling types and traits.
+//!
+//! A lot of the time for this project has gone into error handling. All errors returned by
+//! functions in this project are either of type [`ErrorKind`] or can be wrapped in an
+//! [`ErrorKind`]. This type is an enum with a branch for each of the types of errors that might be
+//! encountered, with an additional branch allowing for an error to "bubble up", wrapping the error
+//! with an additional layer of context for each of the function calls that it is passed through.
+
 use std::any::Any;
 use std::fmt::{Display, Formatter};
 use std::io;

@@ -1,3 +1,26 @@
+#![warn(missing_docs)]
+#![doc(html_root_url = "https://dacid44.github.io/basic_rs/")]
+//! A learning project to build a rudimentary BASIC interpreter in Rust.
+//!
+//! There are many different specifications for various versions of the BASIC language. I am
+//! currently working off of the ECMA-55 spec for Minimal BASIC as, though it was withdrawn, it
+//! should be similar; and it is the best-documented version of the Minimal BASIC spec that I can
+//! find. The end goal is somewhere around Minimal BASIC or Dartmouth BASIC, though it should be
+//! noted that **this is currently a learning project, and compliance to any particular**
+//! **specification is not the goal.**
+//!
+//! ## Instructions currently supported:
+//! |                            |                                                   |
+//! |----------------------------|---------------------------------------------------|
+//! | `REM`                      | comment/no-op                                     |
+//! | `LET`                      | variable definitions                              |
+//! | `PRINT`                    | printing without newline                          |
+//! | `PRINTLN`                  | not in any spec I can find, prints with a newline |
+//! | `GOTO`/`GO TO`             | jumps to a specific line                          |
+//! | `IF...THEN`                | conditional execution                             |
+//! | `FOR...TO(...STEP)`/`NEXT` | for loops                                         |
+//! | `END`                      | exits the program                                 |
+
 mod data;
 mod keyword;
 mod parser;
@@ -99,10 +122,11 @@ impl InstructionReader {
         }
     }
 
+    /// Reads the next instruction from the prompt. If reading from a file, this is a no-op.
+    /// There are a couple intricacies with what the value of n should be. Namely, it should be
+    /// incremented by 1 on each call.
+    /// TODO: refactor so the above is not an issue
     fn read_instruction(&mut self, n: usize) {
-        /// Reads the next instruction from the prompt. If reading from a file, this is a no-op.
-        /// There are a couple intricacies with what the value of n should be.
-        /// TODO: refactor so the above is not an issue
         if self.interactive {
             loop {
                 let input = Input::<String>::new()
@@ -124,6 +148,7 @@ impl InstructionReader {
         }
     }
 
+    /// Get the instruction recorded at the specified line.
     fn get_instruction(&self, i: usize) -> Option<&Keyword> {
         self.instructions.get(&i)
     }
