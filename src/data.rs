@@ -16,19 +16,31 @@ use crate::error::{bubble_result, ResultKind, DataTypeResult, TypeError, DataRes
 //     };
 // }
 
+macro_rules! matching_types {
+    ($v:path, $f:expr) => {
+        ($v(a), $v(b)) => Ok($v($f(a, b)))
+    }
+}
+
 #[derive(Debug)]
 pub(crate) enum EmptyDataType {
     String,
     Integer,
     Float,
     Number,
+    Boolean,
 }
 
-#[derive(Clone, Debug)]
+// impl EmptyDataType {
+//     pub(crate) fn fill(self, )
+// }
+
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum DataType {
     String(String),
     Integer(i64),
     Float(f64),
+    Boolean(bool),
 }
 
 impl DataType {
@@ -41,23 +53,104 @@ impl DataType {
             Self::String(_) => EmptyDataType::String,
             Self::Integer(_) => EmptyDataType::Integer,
             Self::Float(_) => EmptyDataType::Float,
+            Self::Boolean(_) => EmptyDataType::Boolean,
         }
+    }
+
+    pub(crate) fn is_numeric(&self) -> bool {
+        matches!(self, Self::Integer(_) | Self::Float(_))
+    }
+
+    pub(crate) fn is_type(&self, test_type: &EmptyDataType) -> bool {
+        match (self, test_type) {
+            (Self::String(_), EmptyDataType::String) => true,
+            (Self::Integer(_), EmptyDataType::Integer) => true,
+            (Self::Float(_), EmptyDataType::Float) => true,
+            (Self::Integer(_) | Self::Float(_), EmptyDataType::Number) => true,
+            (Self::Boolean(_), EmptyDataType::Boolean) => true,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn check_type(self, test_type: &EmptyDataType) -> Option<Self> {
+        if self.is_type(test_type) { Some(self) } else { None }
+    }
+
+    pub(crate) fn type_error<T>(self, context: &str, expected: EmptyDataType) -> TypeResult<T> {
+        Err(TypeError {
+            context: context.to_string(),
+            expected,
+            actual: self,
+        })
     }
 
     fn pow(self, rhs: Self) -> DataTypeResult {
         match (&self, rhs) {
             (Self::Integer(a), Self::Integer(b)) => Ok(Self::Integer(a.pow(b as u32))),
             (Self::Float(a), Self::Float(b)) => Ok(Self::Float(a.powf(b))),
-            (Self::Integer(_) | Self::Float(_), b) => Err(TypeError {
-                context: "Power (type mismatch)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
-            (_, b) => Err(TypeError {
-                context: "Power (invalid type)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
+            (Self::Integer(_) | Self::Float(_), b) =>
+                b.type_error("Power (type mismatch)", self.get_empty()),
+            (_, b) => b.type_error("Power (invalid type)", self.get_empty()),
+        }
+    }
+
+    fn typed_eq(self, rhs: Self) -> DataTypeResult {
+        match (&self, rhs) {
+            (Self::String(a), Self::String(b)) => Ok(Self::Boolean(*a == b)),
+            (Self::Integer(a), Self::Integer(b)) => Ok(Self::Boolean(*a == b)),
+            (Self::Float(a), Self::Float(b)) => Ok(Self::Boolean(*a == b)),
+            (Self::Boolean(a), Self::Boolean(b)) => Ok(Self::Boolean(*a == b)),
+            (_, b) => b.type_error("Equals (type mismatch)", self.get_empty()),
+        }
+    }
+
+    fn typed_ne(self, rhs: Self) -> DataTypeResult {
+        match (&self, rhs) {
+            (Self::String(a), Self::String(b)) => Ok(Self::Boolean(*a != b)),
+            (Self::Integer(a), Self::Integer(b)) => Ok(Self::Boolean(*a != b)),
+            (Self::Float(a), Self::Float(b)) => Ok(Self::Boolean(*a != b)),
+            (Self::Boolean(a), Self::Boolean(b)) => Ok(Self::Boolean(*a != b)),
+            (_, b) => b.type_error("Equals (type mismatch)", self.get_empty()),
+        }
+    }
+
+    fn typed_lt(self, rhs: Self) -> DataTypeResult {
+        match (&self, rhs) {
+            (Self::Integer(a), Self::Integer(b)) => Ok(Self::Boolean(*a < b)),
+            (Self::Float(a), Self::Float(b)) => Ok(Self::Boolean(*a < b)),
+            (Self::Integer(_) | Self::Float(_), b) =>
+                b.type_error("LessThan (type mismatch)", self.get_empty()),
+            (_, b) => b.type_error("LessThan (invalid type)", self.get_empty()),
+        }
+    }
+
+    fn typed_le(self, rhs: Self) -> DataTypeResult {
+        match (&self, rhs) {
+            (Self::Integer(a), Self::Integer(b)) => Ok(Self::Boolean(*a <= b)),
+            (Self::Float(a), Self::Float(b)) => Ok(Self::Boolean(*a <= b)),
+            (Self::Integer(_) | Self::Float(_), b) =>
+                b.type_error("LessThanEquals (type mismatch)", self.get_empty()),
+            (_, b) => b.type_error("LessThanEquals (invalid type)", self.get_empty()),
+        }
+    }
+
+    fn typed_gt(self, rhs: Self) -> DataTypeResult {
+        match (&self, rhs) {
+            (Self::Integer(a), Self::Integer(b)) => Ok(Self::Boolean(*a > b)),
+            (Self::Float(a), Self::Float(b)) => Ok(Self::Boolean(*a > b)),
+            (Self::Integer(_) | Self::Float(_), b) =>
+                b.type_error("GreaterThan (type mismatch)", self.get_empty()),
+            (_, b) => b.type_error("GreaterThan (invalid type)", self.get_empty()),
+        }
+    }
+
+    fn typed_ge(self, rhs: Self) -> DataTypeResult {
+        match (&self, rhs) {
+            (Self::Integer(a), Self::Integer(b)) => Ok(Self::Boolean(*a >= b)),
+            (Self::Float(a), Self::Float(b)) => Ok(Self::Boolean(*a >= b)),
+            (Self::Integer(_) | Self::Float(_), b) =>
+                b.type_error("GreaterThanEquals (type mismatch)", self.get_empty()),
+            (_, b) => b.type_error("GreaterThanEquals (invalid type)", self.get_empty()),
         }
     }
 }
@@ -69,11 +162,7 @@ impl TryFrom<DataType> for String {
         if let DataType::String(x) = value {
             Ok(x)
         } else {
-            Err(TypeError {
-                context: "Extract".to_string(),
-                expected: EmptyDataType::String,
-                actual: value,
-            })
+            value.type_error("extract", EmptyDataType::String)
         }
     }
 }
@@ -85,11 +174,7 @@ impl TryFrom<DataType> for i64 {
         if let DataType::Integer(x) = value {
             Ok(x)
         } else {
-            Err(TypeError {
-                context: "Extract".to_string(),
-                expected: EmptyDataType::Integer,
-                actual: value
-            })
+            value.type_error("Extract", EmptyDataType::Integer)
         }
     }
 }
@@ -101,11 +186,19 @@ impl TryFrom<DataType> for f64 {
         if let DataType::Float(x) = value {
             Ok(x)
         } else {
-            Err(TypeError {
-                context: "Extract".to_string(),
-                expected: EmptyDataType::Float,
-                actual: value,
-            })
+            value.type_error("Extract", EmptyDataType::Float)
+        }
+    }
+}
+
+impl TryFrom<DataType> for bool {
+    type Error = TypeError;
+
+    fn try_from(value: DataType) -> Result<Self, Self::Error> {
+        if let DataType::Boolean(x) = value {
+            Ok(x)
+        } else {
+            value.type_error("Extract", EmptyDataType::Boolean)
         }
     }
 }
@@ -116,6 +209,7 @@ impl fmt::Display for DataType {
             DataType::String(val) => write!(f, "{}", val),
             DataType::Integer(val) => write!(f, "{}", val),
             DataType::Float(val) => write!(f, "{}", val),
+            DataType::Boolean(val) => write!(f, "{}", val),
         }
     }
 }
@@ -128,16 +222,9 @@ impl Add for DataType {
             (Self::String(a), Self::String(b)) => Ok(Self::String(a.clone() + &b)),
             (Self::Integer(a), Self::Integer(b)) => Ok(Self::Integer(a + b)),
             (Self::Float(a), Self::Float(b)) => Ok(Self::Float(a + b)),
-            (Self::String(_) | Self::Integer(_) | Self::Float(_), b) => Err(TypeError {
-                context: "Add (type mismatch)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
-            (_, b) => Err(TypeError {
-                context: "Add (invalid type)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
+            (Self::String(_) | Self::Integer(_) | Self::Float(_), b) =>
+                b.type_error("Add (type mismatch)", self.get_empty()),
+            (_, b) => b.type_error("Add (invalid type)", self.get_empty()),
         }
     }
 }
@@ -149,16 +236,9 @@ impl Sub for DataType {
         match (&self, rhs) {
             (Self::Integer(a), Self::Integer(b)) => Ok(Self::Integer(a - b)),
             (Self::Float(a), Self::Float(b)) => Ok(Self::Float(a - b)),
-            (Self::Integer(_) | Self::Float(_), b) => Err(TypeError {
-                context: "Subtract (type mismatch)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
-            (_, b) => Err(TypeError {
-                context: "Subtract (invalid type)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
+            (Self::Integer(_) | Self::Float(_), b) =>
+                b.type_error("Subtract (type mismatch)", self.get_empty()),
+            (_, b) => b.type_error("Subtract (invalid type)", self.get_empty()),
         }
     }
 }
@@ -170,16 +250,9 @@ impl Mul for DataType {
         match (&self, rhs) {
             (Self::Integer(a), Self::Integer(b)) => Ok(Self::Integer(a * b)),
             (Self::Float(a), Self::Float(b)) => Ok(Self::Float(a * b)),
-            (Self::Integer(_) | Self::Float(_), b) => Err(TypeError {
-                context: "Divide (type mismatch)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
-            (_, b) => Err(TypeError {
-                context: "Multiply (invalid type)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
+            (Self::Integer(_) | Self::Float(_), b) =>
+                b.type_error("Divide (type mismatch)", self.get_empty()),
+            (_, b) => b.type_error("Multiply (invalid type)", self.get_empty()),
         }
     }
 }
@@ -191,16 +264,9 @@ impl Div for DataType {
         match (&self, rhs) {
             (Self::Integer(a), Self::Integer(b)) => Ok(Self::Integer(a / b)),
             (Self::Float(a), Self::Float(b)) => Ok(Self::Float(a / b)),
-            (Self::Integer(_) | Self::Float(_), b) => Err(TypeError {
-                context: "Divide (type mismatch)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
-            (_, b) => Err(TypeError {
-                context: "Divide (invalid type)".to_string(),
-                expected: self.get_empty(),
-                actual: b,
-            }),
+            (Self::Integer(_) | Self::Float(_), b) =>
+                b.type_error("Divide (type mismatch)", self.get_empty()),
+            (_, b) => b.type_error("Divide (invalid type)", self.get_empty())
         }
     }
 }
@@ -213,6 +279,12 @@ pub(crate) enum Expression {
     Multiply(Box<Expression>, Box<Expression>),
     Divide(Box<Expression>, Box<Expression>),
     Power(Box<Expression>, Box<Expression>),
+    Equals(Box<Expression>, Box<Expression>),
+    NotEquals(Box<Expression>, Box<Expression>),
+    LessThan(Box<Expression>, Box<Expression>),
+    LessThanEquals(Box<Expression>, Box<Expression>),
+    GreaterThan(Box<Expression>, Box<Expression>),
+    GreaterThanEquals(Box<Expression>, Box<Expression>),
 }
 
 impl Expression {
@@ -223,16 +295,28 @@ impl Expression {
                 .ok_or(ErrorKind::NameError(
                     NameError { context: "Eval (name not found)".to_string(), name: name.clone() })),
             Expression::Literal(data) => Ok(data.clone()),
-            Expression::Add(a, b) => combine::<DataType, _>(
+            Expression::Add(a, b) => combine(
                 a.eval(state), b.eval(state), |a, b| a + b, "Eval"),
-            Expression::Subtract(a, b) => combine::<DataType, _>(
+            Expression::Subtract(a, b) => combine(
                 a.eval(state), b.eval(state), |a, b| a - b, "Eval"),
-            Expression::Multiply(a, b) => combine::<DataType, _>(
+            Expression::Multiply(a, b) => combine(
                 a.eval(state), b.eval(state), |a, b| a * b, "Eval"),
-            Expression::Divide(a, b) => combine::<DataType, _>(
+            Expression::Divide(a, b) => combine(
                 a.eval(state), b.eval(state), |a, b| a / b, "Eval"),
-            Expression::Power(a, b) => combine::<DataType, _>(
+            Expression::Power(a, b) => combine(
                 a.eval(state), b.eval(state), |a, b| a.pow(b), "Eval"),
+            Expression::Equals(a, b) => combine(
+                a.eval(state), b.eval(state), |a, b| a.typed_eq(b), "Eval"),
+            Expression::NotEquals(a, b) => combine(
+                a.eval(state), b.eval(state), |a, b| a.typed_ne(b), "Eval"),
+            Expression::LessThan(a, b) => combine(
+                a.eval(state), b.eval(state), |a, b| a.typed_lt(b), "Eval"),
+            Expression::LessThanEquals(a, b) => combine(
+                a.eval(state), b.eval(state), |a, b| a.typed_le(b), "Eval"),
+            Expression::GreaterThan(a, b) => combine(
+                a.eval(state), b.eval(state), |a, b| a.typed_gt(b), "Eval"),
+            Expression::GreaterThanEquals(a, b) => combine(
+                a.eval(state), b.eval(state), |a, b| a.typed_ge(b), "Eval"),
         }
     }
 }

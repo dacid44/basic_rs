@@ -8,9 +8,13 @@ somewhere around Minimal BASIC or Dartmouth BASIC, though it should be noted tha
 **currently a learning project, and compliance to any particular specification is not the goal.**
 
 ## Instructions currently supported:
-- `REM` (aka comment/no-op)
-- `LET` (variable definitions)
-- `PRINT` (printing without newline)
-  - `PRINTLN` (not in any spec I can find, prints with a newline)
-- `GOTO`/`GO TO` (jumps to a specific line)
-- `END` (exits the program)
+|                            |                                                   |
+|----------------------------|---------------------------------------------------|
+| `REM`                      | comment/no-op                                     |
+| `LET`                      | variable definitions                              |
+| `PRINT`                    | printing without newline                          |
+| `PRINTLN`                  | not in any spec I can find, prints with a newline |
+| `GOTO`/`GO TO`             | jumps to a specific line                          |
+| `IF...THEN`                | conditional execution                             |
+| `FOR...TO(...STEP)`/`NEXT` | for loops                                         |
+| `END`                      | exits the program                                 |

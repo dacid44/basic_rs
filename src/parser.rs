@@ -2,7 +2,7 @@ use std::str::FromStr;
 use nom::branch::alt;
 use nom::bytes::complete::{tag_no_case, take_till1, take_until, take_until1, take_while, is_not, is_a};
 use nom::character::complete::{char, i64, multispace0, one_of, u32};
-use nom::combinator::{all_consuming, consumed, map, rest, verify};
+use nom::combinator::{all_consuming, consumed, map, opt, rest, verify};
 use nom::{Err, Finish, IResult, ErrorConvert, Parser, InputLength, InputIter};
 use nom::bytes::complete::tag;
 use nom::error::{Error, ErrorKind, VerboseError};
@@ -73,16 +73,36 @@ impl Parseable for Expression {
             map(
                 tuple((
                     trail_ws(parse_non_compound_expression),
-                    trail_ws(alt((char('+'), char('-'), char('*'), char('/'), char('^')))),
+                    trail_ws(alt((
+                        tag("+"),
+                        tag("-"),
+                        tag("*"),
+                        tag("/"),
+                        tag("^"),
+                        tag("=="),
+                        tag("<>"),
+                        tag("!="),
+                        tag("<"),
+                        tag("="),
+                        tag("<="),
+                        tag(">"),
+                        tag(">="),
+                    ))),
                     Self::parser
                 )),
                 |(a, op, b)| match op {
-                    '+' => Self::Add(a.into(), b.into()),
-                    '-' => Self::Subtract(a.into(), b.into()),
-                    '*' => Self::Multiply(a.into(), b.into()),
-                    '/' => Self::Divide(a.into(), b.into()),
-                    '^' => Self::Power(a.into(), b.into()),
-                    _ => unreachable!("This char should already have been checked"),
+                    "+" => Self::Add(a.into(), b.into()),
+                    "-" => Self::Subtract(a.into(), b.into()),
+                    "*" => Self::Multiply(a.into(), b.into()),
+                    "/" => Self::Divide(a.into(), b.into()),
+                    "^" => Self::Power(a.into(), b.into()),
+                    "=" | "==" => Self::Equals(a.into(), b.into()),
+                    "<>" | "!=" => Self::NotEquals(a.into(), b.into()),
+                    "<" => Self::LessThan(a.into(), b.into()),
+                    "<=" => Self::LessThanEquals(a.into(), b.into()),
+                    ">" => Self::GreaterThan(a.into(), b.into()),
+                    ">=" => Self::GreaterThanEquals(a.into(), b.into()),
+                    _ => unreachable!("This operator should already have been checked"),
                 }
             ),
             map(
@@ -116,6 +136,7 @@ fn parse_non_compound_expression(input: &str) -> IResult<&str, Expression> {
 }
 
 impl Parseable for Keyword {
+    // TODO: allow for whitespace between keywords and expressions
     fn parser(input: &str) -> IResult<&str, Self> {
         alt((
             map(
@@ -161,6 +182,48 @@ impl Parseable for Keyword {
                     u32,
                 ),
                 |x| Self::Goto(x as usize),
+            ),
+            map(
+                preceded(
+                    tag_no_case("IF "),
+                    tuple((
+                        Expression::parser,
+                        preceded(
+                            tag_no_case(" THEN "),
+                            u32,
+                        ),
+                    )),
+                ),
+                |(c, line)| Self::IfThen(c, line as usize),
+            ),
+            map(
+                preceded(
+                    tag_no_case("FOR "),
+                    tuple((
+                        terminated(
+                            trail_ws(is_a(VALID_NAME_CHARS)),
+                            trail_ws(char('=')),
+                        ),
+                        Expression::parser,
+                        preceded(
+                            tag_no_case(" TO "),
+                            Expression::parser,
+                        ),
+                        opt(preceded(
+                            tag_no_case(" STEP "),
+                            Expression::parser,
+                        )),
+                    )),
+                ),
+                |(name, start, end, step)| Self::For(
+                    name.to_string(), start, end, step, None)
+            ),
+            map(
+                preceded(
+                    tag_no_case("NEXT "),
+                    trail_ws(is_a(VALID_NAME_CHARS)),
+                ),
+                |x: &str| Self::Next(x.to_string(), None),
             ),
             map(
                 tag_no_case("END"),
