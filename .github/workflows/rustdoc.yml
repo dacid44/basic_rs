@@ -1,0 +1,37 @@
+name: rustdoc
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  rustdoc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Build docs
+        run: cargo doc --no-deps
+      - name: Add redirect index.html
+        run: echo "<meta http-equiv=\"refresh\" content=\"0; url=$(echo $GITHUB_REPOSITORY | cut -d '/' -f 2)\">" > target/doc/index.html
+
+      - name: Install python
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.9
+      - name: Install ghp-import
+        run: pip install ghp-import
+
+      - name: Commit docs to gh-pages branch
+        run: ghp-import -n target/doc
+      - name: Push docs to gh-pages branch
+        run: git push -fq origin gh-pages
