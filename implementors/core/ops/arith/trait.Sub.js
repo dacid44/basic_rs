@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["basic_rs"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.60.0/core/ops/arith/trait.Sub.html\" title=\"trait core::ops::arith::Sub\">Sub</a>&lt;<a class=\"enum\" href=\"basic_rs/data/enum.DataType.html\" title=\"enum basic_rs::data::DataType\">DataType</a>&gt; for <a class=\"enum\" href=\"basic_rs/data/enum.DataType.html\" title=\"enum basic_rs::data::DataType\">DataType</a>","synthetic":false,"types":["basic_rs::data::DataType"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

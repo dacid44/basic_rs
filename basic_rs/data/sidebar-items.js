@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["DataType","Holds the available data types."],["EmptyDataType","Used to hold a specifier for a type of data without the data itself."],["Expression",""]],"fn":[["combine",""]],"macro":[["matching_types",""]]});
