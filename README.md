@@ -18,3 +18,5 @@ somewhere around Minimal BASIC or Dartmouth BASIC, though it should be noted tha
 | `IF...THEN`                | conditional execution                             |
 | `FOR...TO(...STEP)`/`NEXT` | for loops                                         |
 | `END`                      | exits the program                                 |
+
+Implementation docs [here](https://dacid44.github.io/basic_rs/basic_rs/).
